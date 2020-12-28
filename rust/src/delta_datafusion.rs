@@ -6,6 +6,7 @@ use arrow::datatypes::{
 };
 use datafusion::datasource::datasource::Statistics;
 use datafusion::datasource::TableProvider;
+use datafusion::logical_plan::Expr;
 use datafusion::physical_plan::parquet::ParquetExec;
 use datafusion::physical_plan::ExecutionPlan;
 
@@ -23,17 +24,15 @@ impl TableProvider for delta::DeltaTable {
         &self,
         projection: &Option<Vec<usize>>,
         batch_size: usize,
+        _filters: &[Expr],
     ) -> datafusion::error::Result<Arc<dyn ExecutionPlan>> {
-        let schema =
-            <ArrowSchema as From<&schema::Schema>>::from(delta::DeltaTable::schema(&self).unwrap());
         let filenames = self.get_file_paths();
 
-        Ok(Arc::new(ParquetExec::new(
-            filenames,
-            schema,
+        Ok(Arc::new(ParquetExec::try_from_files(
+            &filenames.iter().map(|x| x.as_str()).collect::<Vec<_>>(),
             projection.clone(),
             batch_size,
-        )))
+        )?))
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -100,7 +99,7 @@ impl From<&schema::SchemaDataType> for ArrowDataType {
                     }
                     "timestamp" => {
                         // Microsecond precision timestamp without a timezone.
-                        ArrowDataType::Time64(TimeUnit::Microsecond)
+                        ArrowDataType::Timestamp(TimeUnit::Nanosecond, None)
                     }
                     s => {
                         panic!("unexpected delta schema type: {}", s);

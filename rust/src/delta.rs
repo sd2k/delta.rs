@@ -83,6 +83,7 @@ pub enum DeltaTableError {
     NotATable,
 }
 
+#[derive(Debug)]
 pub struct DeltaTableMetaData {
     // Unique identifier for this table
     pub id: GUID,
@@ -159,6 +160,7 @@ impl From<StorageError> for LoadCheckpointError {
     }
 }
 
+#[derive(Debug)]
 pub struct DeltaTable {
     pub version: DeltaDataTypeVersion,
     // A remove action should remain in the state of the table as a tombstone until it has expired
@@ -172,7 +174,7 @@ pub struct DeltaTable {
     // application_transactions
     storage: Box<dyn StorageBackend>,
 
-    files: Vec<String>,
+    pub files: Vec<String>,
     app_transaction_version: HashMap<String, DeltaDataTypeVersion>,
     commit_infos: Vec<Value>,
     current_metadata: Option<DeltaTableMetaData>,
@@ -182,6 +184,10 @@ pub struct DeltaTable {
 }
 
 impl DeltaTable {
+    pub fn storage_backend(&self) -> &Box<dyn StorageBackend> {
+        &self.storage
+    }
+
     fn version_to_log_path(&self, version: DeltaDataTypeVersion) -> String {
         return format!("{}/{:020}.json", self.log_path, version);
     }
@@ -602,11 +608,11 @@ impl fmt::Display for DeltaTable {
     }
 }
 
-impl std::fmt::Debug for DeltaTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "DeltaTable <{}>", self.table_path)
-    }
-}
+// impl std::fmt::Debug for DeltaTable {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+//         write!(f, "DeltaTable <{}>", self.table_path)
+//     }
+// }
 
 pub async fn open_table(table_path: &str) -> Result<DeltaTable, DeltaTableError> {
     let storage_backend = storage::get_backend_for_uri(table_path)?;
